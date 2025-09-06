@@ -1,10 +1,11 @@
 import Head from "next/head";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Download, Wand2, Mail, Sparkles, Lock, Plus, CheckCircle, Star, Trash2, Link as LinkIcon,
+  Download, Wand2, Mail, Sparkles, Lock, Plus, CheckCircle, Star, Trash2,
 } from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
-/* ---------------- Types ---------------- */
+/* ===================== Types ===================== */
 type Experience = {
   id: string; title: string; company: string; location?: string;
   start: string; end: string; bullets: string[];
@@ -21,7 +22,7 @@ type Resume = {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-/* ---------------- Seed ---------------- */
+/* ===================== Seed ===================== */
 const defaultResume: Resume = {
   name: "Your Name",
   role: "Operations & E-commerce Manager",
@@ -73,7 +74,7 @@ const defaultResume: Resume = {
   ],
 };
 
-/* ---------------- Skill Library (suggestions) ---------------- */
+/* ===================== Skills Library (suggestions) ===================== */
 const SKILL_LIBRARY: string[] = [
   // Tech / Data
   "Excel", "Excel / Power Query", "Power BI", "Tableau",
@@ -94,7 +95,7 @@ const SKILL_LIBRARY: string[] = [
   "JavaScript", "TypeScript", "HTML/CSS", "React", "Node.js",
 ];
 
-/* ---------------- Templates List ---------------- */
+/* ===================== Templates List ===================== */
 const TEMPLATES = [
   { id: "minimal", name: "ATS Minimal", isPremium: false, badge: "Free" },
   { id: "sidebar", name: "Modern Sidebar", isPremium: true, badge: "Pro" },
@@ -106,14 +107,16 @@ const TEMPLATES = [
 ] as const;
 type TemplateId = typeof TEMPLATES[number]["id"];
 
-/* ---------------- Small UI helpers ---------------- */
+/* ===================== Small UI helpers ===================== */
 const Input = (p: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input {...p}
+  <input
+    {...p}
     className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${p.className || ""}`}
   />
 );
 const TextArea = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea {...p}
+  <textarea
+    {...p}
     className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 ${p.className || ""}`}
   />
 );
@@ -121,34 +124,28 @@ const Chip = ({ children }: { children: React.ReactNode }) => (
   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">{children}</span>
 );
 
-/* ---------------- Generators ---------------- */
+/* ===================== Generators ===================== */
 function generateCoverLetter(resume: Resume, jobTitle = "", company = "", tone: "formal" | "friendly" = "formal") {
   const intro =
     tone === "formal"
       ? `Dear Hiring Manager,\n\nI am writing to express my interest in the ${jobTitle || "role"} at ${company || "your organization"}. With experience in ${resume.role.toLowerCase()} and a track record of driving operational efficiency, I can add value from day one.`
       : `Hi there,\n\nI'm excited to apply for the ${jobTitle || "role"} at ${company || "your team"}. I'm a hands-on ${resume.role} who loves building automations and scaling ops.`;
-
   const body = `\n\nHighlights:\n• ${resume.experience[0]?.bullets[0] || "Delivered measurable results"}\n• ${resume.experience[0]?.bullets[1] || "Automated workflows to save time"}\n• ${resume.skills.slice(0, 3).join(", ")}\n\nWhy ${company || "this role"}:\n• Fast-moving environment and scope to own impact\n• Opportunity to apply data-driven problem solving`;
-
   const close =
     tone === "formal"
       ? `\n\nThank you for your time. I have attached my resume and would welcome the opportunity to discuss further.\n\nSincerely,\n${resume.name}`
       : `\n\nThanks for reading! Attaching my resume—would love to chat.\n\nBest,\n${resume.name}`;
-
   return `${intro}${body}${close}`;
 }
-
 function generateJobEmail(resume: Resume, jobTitle = "", company = "") {
   return `Subject: Application for ${jobTitle || "Open Role"} – ${resume.name}\n\nHi ${
     company ? company + " Team" : "Hiring Team"
-  },\n\nSharing my resume for ${jobTitle || "the role"}. Quick snapshot: ${
-    resume.summary
-  }\n\nLinks: ${resume.links.map((l) => `${l.label}: ${l.url}`).join(" | ")}\n\nThanks,\n${
-    resume.name
-  }\n${resume.phone} | ${resume.email}`;
+  },\n\nSharing my resume for ${jobTitle || "the role"}. Quick snapshot: ${resume.summary}\n\nLinks: ${resume.links
+    .map((l) => `${l.label}: ${l.url}`)
+    .join(" | ")}\n\nThanks,\n${resume.name}\n${resume.phone} | ${resume.email}`;
 }
 
-/* ---------------- Templates ---------------- */
+/* ===================== Templates ===================== */
 // 1) ATS Minimal
 function TemplateMinimal({ resume }: { resume: Resume }) {
   return (
@@ -196,7 +193,6 @@ function TemplateMinimal({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 2) Modern Sidebar (Pro)
 function TemplateSidebar({ resume }: { resume: Resume }) {
   return (
@@ -240,7 +236,6 @@ function TemplateSidebar({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 3) Elegant Serif (Pro)
 function TemplateElegant({ resume }: { resume: Resume }) {
   return (
@@ -284,7 +279,6 @@ function TemplateElegant({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 4) Slate Shaded (Free)
 function TemplateSlateShaded({ resume }: { resume: Resume }) {
   return (
@@ -322,7 +316,6 @@ function TemplateSlateShaded({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 5) Indigo Header (Pro)
 function TemplateIndigoHeader({ resume }: { resume: Resume }) {
   return (
@@ -366,7 +359,6 @@ function TemplateIndigoHeader({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 6) Card Sections (Free)
 function TemplateCards({ resume }: { resume: Resume }) {
   return (
@@ -414,7 +406,6 @@ function TemplateCards({ resume }: { resume: Resume }) {
     </div>
   );
 }
-
 // 7) Compact Two-Column (Pro)
 function TemplateCompactTwoCol({ resume }: { resume: Resume }) {
   return (
@@ -461,48 +452,50 @@ function TemplateCompactTwoCol({ resume }: { resume: Resume }) {
   );
 }
 
-/* ---------------- Page ---------------- */
+/* ===================== Page ===================== */
 export default function Home() {
+  const { data: session } = useSession();
+
   const [resume, setResume] = useState<Resume>(defaultResume);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>("minimal");
-  const [isPro, setIsPro] = useState(false);            // simulate subscription
-  const [freeCredits, setFreeCredits] = useState(1);    // simulate 1 free download
+
+  // These are *display only* (server is source of truth via /api/download/authorize)
+  const [localFree, setLocalFree] = useState<number>(1);
+  const [isProLocal, setIsProLocal] = useState<boolean>(false);
+
   const [newSkill, setNewSkill] = useState("");
   const [skillQuery, setSkillQuery] = useState("");
   const [links, setLinks] = useState<LinkItem[]>(defaultResume.links);
 
-  // letter/email modals
+  // cover letter & email modals
   const [jobTitle, setJobTitle] = useState(""); const [company, setCompany] = useState("");
   const [showLetter, setShowLetter] = useState(false); const [letterText, setLetterText] = useState("");
   const [showEmail, setShowEmail] = useState(false); const [emailText, setEmailText] = useState("");
 
   const printRef = useRef<HTMLDivElement>(null);
 
-  // persistence
+  /* -------- persistence for client preview (not auth) -------- */
   useEffect(() => {
     try {
       const raw = localStorage.getItem("cvb:resume");
       const st = localStorage.getItem("cvb:template");
-      const pro = localStorage.getItem("cvb:pro");
       const fc = localStorage.getItem("cvb:free");
+      const pro = localStorage.getItem("cvb:isProLocal");
       const rl = localStorage.getItem("cvb:links");
       if (raw) setResume(JSON.parse(raw));
       if (st) setSelectedTemplate(st as TemplateId);
-      if (pro) setIsPro(pro === "1");
-      if (fc) setFreeCredits(parseInt(fc));
+      if (fc) setLocalFree(parseInt(fc));
+      if (pro) setIsProLocal(pro === "1");
       if (rl) setLinks(JSON.parse(rl));
     } catch {}
   }, []);
   useEffect(() => { try { localStorage.setItem("cvb:resume", JSON.stringify(resume)); } catch {} }, [resume]);
   useEffect(() => { try { localStorage.setItem("cvb:template", selectedTemplate); } catch {} }, [selectedTemplate]);
-  useEffect(() => { try { localStorage.setItem("cvb:pro", isPro ? "1" : "0"); } catch {} }, [isPro]);
-  useEffect(() => { try { localStorage.setItem("cvb:free", String(freeCredits)); } catch {} }, [freeCredits]);
+  useEffect(() => { try { localStorage.setItem("cvb:free", String(localFree)); } catch {} }, [localFree]);
+  useEffect(() => { try { localStorage.setItem("cvb:isProLocal", isProLocal ? "1" : "0"); } catch {} }, [isProLocal]);
   useEffect(() => { try { localStorage.setItem("cvb:links", JSON.stringify(links)); } catch {} }, [links]);
-
-  // wire links to resume object
   useEffect(() => { setResume((r) => ({ ...r, links })); }, [links]);
 
-  // skill suggestions
   const skillSuggestions = useMemo(() => {
     const q = (skillQuery || newSkill).trim().toLowerCase();
     if (!q) return SKILL_LIBRARY.slice(0, 10);
@@ -523,7 +516,20 @@ export default function Home() {
     }
   }, [selectedTemplate, resume]);
 
-  /* ----------- Actions ----------- */
+  /* -------- helpers -------- */
+  async function loadRazorpay() {
+    if (document.getElementById("rzp-script")) return;
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement("script");
+      s.id = "rzp-script";
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Razorpay load failed"));
+      document.body.appendChild(s);
+    });
+  }
+
+  /* -------- CRUD buttons -------- */
   function addExperience() {
     setResume((r) => ({
       ...r,
@@ -533,45 +539,65 @@ export default function Home() {
       ],
     }));
   }
-  function removeExperience(id: string) {
-    setResume((r) => ({ ...r, experience: r.experience.filter((e) => e.id !== id) }));
-  }
+  function removeExperience(id: string) { setResume((r) => ({ ...r, experience: r.experience.filter((e) => e.id !== id) })); }
   function addEducation() {
-    setResume((r) => ({
-      ...r,
-      education: [...r.education, { id: uid(), degree: "Degree", school: "Institute", year: "2024", details: "" }],
-    }));
+    setResume((r) => ({ ...r, education: [...r.education, { id: uid(), degree: "Degree", school: "Institute", year: "2024", details: "" }] }));
   }
-  function removeEducation(id: string) {
-    setResume((r) => ({ ...r, education: r.education.filter((e) => e.id !== id) }));
-  }
+  function removeEducation(id: string) { setResume((r) => ({ ...r, education: r.education.filter((e) => e.id !== id) })); }
   function addSkill() {
     const s = (newSkill || skillQuery).trim();
     if (!s) return;
     if (!resume.skills.includes(s)) setResume((r) => ({ ...r, skills: [...r.skills, s] }));
     setNewSkill(""); setSkillQuery("");
   }
-  function removeSkill(idx: number) {
-    setResume((r) => ({ ...r, skills: r.skills.filter((_, i) => i !== idx) }));
-  }
-  function addLink() {
-    setLinks((l) => [...l, { label: "Website", url: "https://example.com" }]);
-  }
-  function removeLink(idx: number) {
-    setLinks((l) => l.filter((_, i) => i !== idx));
-  }
+  function removeSkill(idx: number) { setResume((r) => ({ ...r, skills: r.skills.filter((_, i) => i !== idx) })); }
+  function addLink() { setLinks((l) => [...l, { label: "Website", url: "https://example.com" }]); }
+  function removeLink(idx: number) { setLinks((l) => l.filter((_, i) => i !== idx)); }
 
   function generateLetter() { setLetterText(generateCoverLetter(resume, jobTitle, company, "formal")); setShowLetter(true); }
   function generateEmail() { setEmailText(generateJobEmail(resume, jobTitle, company)); setShowEmail(true); }
 
+  /* -------- Auth-aware gated download -> payment -> PDF -------- */
   async function downloadPDF() {
-    // Pricing simulation (replace with server auth + Razorpay later)
     const sel = TEMPLATES.find((t) => t.id === selectedTemplate)!;
-    if (sel.isPremium && !isPro) {
-      if (!confirm("This is a premium template. Pay ₹10 to download? (simulation)")) return;
-    } else if (!sel.isPremium && freeCredits <= 0) {
-      if (!confirm("You've used your free download. Pay ₹5 for this download? (simulation)")) return;
+
+    // 1) Ask the server if user is allowed (login/credit/pro/payment)
+    const authRes = await fetch("/api/download/authorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPremium: sel.isPremium }),
+    }).then((r) => r.json());
+
+    if (!authRes.allowed) {
+      if (authRes.reason === "login") {
+        if (confirm("Please login to download. Go to login page now?")) window.location.href = "/login";
+        return;
+      }
+      if (authRes.reason === "payment") {
+        await loadRazorpay();
+        const { orderId, key } = await fetch("/api/pay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amountINR: sel.isPremium ? 10 : 5 }),
+        }).then((r) => r.json());
+
+        // @ts-ignore
+        const rzp = new window.Razorpay({
+          key,
+          order_id: orderId,
+          name: "CVCraft",
+          description: sel.isPremium ? "Premium template download" : "Single download",
+          handler: function () {
+            alert("Payment captured! You now have 1 download credit. Click Download again.");
+          },
+          theme: { color: "#4f46e5" },
+        });
+        rzp.open();
+        return;
+      }
     }
+
+    // 2) Allowed → generate PDF now
     try {
       const html2canvasMod: any = await import("html2canvas");
       const html2canvas = html2canvasMod.default || html2canvasMod;
@@ -581,7 +607,6 @@ export default function Home() {
       const node = printRef.current;
       if (!node) return;
 
-      // hide toolbar/badges
       const hiders = document.querySelectorAll(".print-hidden");
       hiders.forEach((el) => ((el as HTMLElement).style.visibility = "hidden"));
       await new Promise((r) => setTimeout(r, 50));
@@ -590,6 +615,7 @@ export default function Home() {
         scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
         windowWidth: node.scrollWidth, windowHeight: node.scrollHeight,
       });
+
       hiders.forEach((el) => ((el as HTMLElement).style.visibility = ""));
 
       const img = canvas.toDataURL("image/png");
@@ -608,7 +634,6 @@ export default function Home() {
         }
       }
       pdf.save("resume.pdf");
-      if (!sel.isPremium && freeCredits > 0) setFreeCredits((n) => n - 1);
     } catch (e) {
       console.error(e);
       alert("Download failed. Refresh and try again.");
@@ -632,16 +657,18 @@ export default function Home() {
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">MVP</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              {isPro ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-yellow-800">
-                  <Star className="h-4 w-4" /> Pro Active
-                </span>
+              {session?.user ? (
+                <>
+                  {/* session extras are added in the NextAuth session callback; for the header we keep it simple */}
+                  <span className="hidden sm:inline text-gray-600">Hi, {session.user.name || session.user.email}</span>
+                  <button onClick={() => signOut({ callbackUrl: "/" })} className="rounded-xl border bg-white px-3 py-1.5 shadow-sm hover:bg-gray-50">Logout</button>
+                </>
               ) : (
-                <button onClick={() => setIsPro(true)} className="rounded-xl border bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-gray-50">
-                  Activate Pro (simulate)
-                </button>
+                <>
+                  <a href="/login" className="rounded-xl border bg-white px-3 py-1.5 shadow-sm hover:bg-gray-50">Login</a>
+                  <a href="/signup" className="rounded-xl bg-gray-900 px-3 py-1.5 text-white hover:bg-black">Sign up</a>
+                </>
               )}
-              <span className="rounded-full bg-gray-100 px-2 py-1 text-xs">Free downloads left: {freeCredits}</span>
             </div>
           </header>
 
@@ -706,7 +733,7 @@ export default function Home() {
                     onChange={(e) => { setSkillQuery(e.target.value); setNewSkill(e.target.value); }}
                     onKeyDown={(e) => { if (e.key === "Enter") addSkill(); }}
                   />
-                  { (skillQuery || newSkill) && (
+                  {(skillQuery || newSkill) && (
                     <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-xl border bg-white p-1 shadow-lg">
                       {skillSuggestions.length === 0 ? (
                         <div className="px-3 py-2 text-xs text-gray-500">No suggestions</div>
@@ -804,10 +831,10 @@ export default function Home() {
                   <Input placeholder="Company (e.g., Myntra)" value={company} onChange={(e) => setCompany(e.target.value)} />
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <button onClick={generateLetter} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700">
+                  <button onClick={() => { setShowLetter(true); setLetterText(generateCoverLetter(resume, jobTitle, company, "formal")); }} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700">
                     <Wand2 className="h-4 w-4" /> Generate Letter
                   </button>
-                  <button onClick={generateEmail} className="inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50">
+                  <button onClick={() => { setShowEmail(true); setEmailText(generateJobEmail(resume, jobTitle, company)); }} className="inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50">
                     <Mail className="h-4 w-4" /> Generate Email
                   </button>
                 </div>
@@ -846,7 +873,7 @@ export default function Home() {
                   {selectedTemplate === "compactTwoCol" && <TemplateCompactTwoCol resume={resume} />}
 
                   {/* Premium watermark */}
-                  {TEMPLATES.find((t) => t.id === selectedTemplate)?.isPremium && !isPro && (
+                  {TEMPLATES.find((t) => t.id === selectedTemplate)?.isPremium && (
                     <div className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs text-white print-hidden">
                       <Lock className="h-3 w-3" /> Premium preview
                     </div>
